@@ -1,5 +1,6 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode ,useRef} from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode, useRef } from 'react';
 import { WebSocketService } from '../utils/websocket';
+import { fetchStockData, fetchIntradayData } from '../utils/api';
 import {
   Stock, Order, OrderBook, Trade, WebSocketMessage
 } from '../types';
@@ -43,10 +44,38 @@ export function TradingProvider({ children }: { children: ReactNode }) {
   const [orders, setOrders] = useState<Order[]>([]);
   const [trades, setTrades] = useState<Trade[]>([]);
 
-  // Historical prices for charting
   const [historicalPrices, setHistoricalPrices] = useState<{ [symbol: string]: { time: number; price: number }[] }>({});
 
-  // Initialize WebSocket connection and handlers
+  // Fetch real stock data
+  useEffect(() => {
+    const fetchData = async () => {
+      const updatedStocks = await Promise.all(
+        stocks.map(async (stock) => {
+          const realData = await fetchStockData(stock.symbol);
+          return realData || stock;
+        })
+      );
+      setStocks(updatedStocks);
+    };
+
+    fetchData();
+    const interval = setInterval(fetchData, 60000); // Update every minute
+
+    return () => clearInterval(interval);
+  }, []);
+
+  // Fetch intraday data when stock is selected
+  useEffect(() => {
+    if (selectedStock) {
+      fetchIntradayData(selectedStock.symbol).then((data) => {
+        setHistoricalPrices(prev => ({
+          ...prev,
+          [selectedStock.symbol]: data
+        }));
+      });
+    }
+  }, [selectedStock?.symbol]);
+
   useEffect(() => {
     const ws = new WebSocketService(clientId, lamportClock, vectorClock);
     setWebsocket(ws);
@@ -113,36 +142,30 @@ export function TradingProvider({ children }: { children: ReactNode }) {
   }, [clientId, lamportClock, vectorClock]);
 
   const historicalPricesRef = useRef(historicalPrices);
-useEffect(() => {
-  historicalPricesRef.current = historicalPrices;
-}, [historicalPrices]);
+  useEffect(() => {
+    historicalPricesRef.current = historicalPrices;
+  }, [historicalPrices]);
 
-  // Simulate market updates every 3 seconds
   useEffect(() => {
     if (!websocket) return;
 
     const intervalId = setInterval(() => {
-      // Increment clocks
       const newLamportClock = incrementLamportClock(lamportClock);
       setLamportClock(newLamportClock);
 
       const newVectorClock = incrementVectorClock(vectorClock, clientId);
       setVectorClock(newVectorClock);
 
-      // Simulate stock price changes
       const updatedStocks = stocks.map(simulatePriceChange);
       setStocks(updatedStocks);
 
-      // Send updated market data via websocket
       websocket.send('MARKET_DATA', updatedStocks);
 
-      // Update selectedStock if any
       if (selectedStock) {
         const updated = updatedStocks.find(s => s.symbol === selectedStock.symbol);
         if (updated) setSelectedStock(updated);
       }
 
-      // Update historical prices (keep last 60 entries per stock)
       setHistoricalPrices(prev => {
         const now = Date.now();
         const updatedHistory = { ...historicalPricesRef.current };
@@ -161,10 +184,8 @@ useEffect(() => {
     }, 3000);
 
     return () => clearInterval(intervalId);
-  }, [websocket, stocks, selectedStock, clientId, lamportClock, vectorClock,]);
+  }, [websocket, stocks, selectedStock, clientId, lamportClock, vectorClock]);
 
-
-  // Initialize order books for stocks when websocket and stocks are ready
   useEffect(() => {
     if (!websocket || Object.keys(orderBooks).length > 0) return;
 
@@ -180,7 +201,6 @@ useEffect(() => {
     });
   }, [websocket, stocks, orderBooks]);
 
-  // Automatically select first stock if none selected
   useEffect(() => {
     if (!selectedStock && stocks.length > 0) {
       setSelectedStock(stocks[0]);
