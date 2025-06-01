@@ -94,14 +94,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         body: JSON.stringify({ email, password, name })
       });
 
+      const data = await response.json();
+      
       if (!response.ok) {
-        throw new Error('Signup failed');
+        throw new Error(data.message || 'Signup failed');
       }
 
-      const { token, user: userData } = await response.json();
-      const validatedUser = userSchema.parse(userData);
+      const validatedUser = userSchema.parse(data.user);
       
-      localStorage.setItem('token', token);
+      localStorage.setItem('token', data.token);
       setUser(validatedUser);
       navigate('/dashboard');
     } catch (error) {

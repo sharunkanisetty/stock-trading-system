@@ -17,7 +17,7 @@ const SignupForm: React.FC = () => {
     try {
       await signup(email, password, name);
     } catch (err) {
-      setError('Failed to create account');
+      setError(err instanceof Error ? err.message : 'Failed to create account');
     }
   };
 
