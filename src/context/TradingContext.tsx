@@ -23,7 +23,7 @@ interface TradingContextType {
   lamportClock: number;
   vectorClock: { [clientId: string]: number };
   isConnected: boolean;
-  historicalPrices: { [symbol: string]: { time: number; price: number }[] };
+  historicalPrices: { [symbol: string]: { timestamp: number; price: number }[] };
   selectStock: (symbol: string) => void;
   placeOrder: (symbol: string, type: 'BUY' | 'SELL', price: number, quantity: number) => void;
   cancelOrder: (orderId: string) => void;
@@ -44,7 +44,7 @@ export function TradingProvider({ children }: { children: ReactNode }) {
   const [orders, setOrders] = useState<Order[]>([]);
   const [trades, setTrades] = useState<Trade[]>([]);
 
-  const [historicalPrices, setHistoricalPrices] = useState<{ [symbol: string]: { time: number; price: number }[] }>({});
+  const [historicalPrices, setHistoricalPrices] = useState<{ [symbol: string]: { timestamp: number; price: number }[] }>({});
 
   // Fetch real stock data
   useEffect(() => {
@@ -77,7 +77,8 @@ export function TradingProvider({ children }: { children: ReactNode }) {
   }, [selectedStock?.symbol]);
 
   useEffect(() => {
-    const ws = new WebSocketService(clientId, lamportClock, vectorClock);
+    // Initialize WebSocket with initial clock values
+    const ws = new WebSocketService(clientId, 0, { [clientId]: 0 });
     setWebsocket(ws);
     setIsConnected(true);
 
@@ -107,19 +108,6 @@ export function TradingProvider({ children }: { children: ReactNode }) {
       if (confirmedOrder.clientId === clientId) {
         setOrders(prev => [confirmedOrder, ...prev]);
       }
-
-      setLamportClock(prev => Math.max(prev, message.lamportTimestamp) + 1);
-
-      if (message.vectorClock) {
-        setVectorClock(prev => {
-          const newClock = { ...prev };
-          Object.keys(message.vectorClock).forEach(id => {
-            if (!newClock[id]) newClock[id] = 0;
-            newClock[id] = Math.max(newClock[id], message.vectorClock![id]);
-          });
-          return newClock;
-        });
-      }
     });
 
     ws.on('TRADE_EXECUTION', (message: WebSocketMessage) => {
@@ -135,11 +123,18 @@ export function TradingProvider({ children }: { children: ReactNode }) {
       }
     });
 
+    // Sync clocks periodically
+    const clockSyncInterval = setInterval(() => {
+      setLamportClock(ws.getLamportClock());
+      setVectorClock(ws.getVectorClock());
+    }, 1000);
+
     return () => {
+      clearInterval(clockSyncInterval);
       ws.close();
       setIsConnected(false);
     };
-  }, [clientId, lamportClock, vectorClock]);
+  }, [clientId]); // Only depend on clientId
 
   const historicalPricesRef = useRef(historicalPrices);
   useEffect(() => {
@@ -150,12 +145,6 @@ export function TradingProvider({ children }: { children: ReactNode }) {
     if (!websocket) return;
 
     const intervalId = setInterval(() => {
-      const newLamportClock = incrementLamportClock(lamportClock);
-      setLamportClock(newLamportClock);
-
-      const newVectorClock = incrementVectorClock(vectorClock, clientId);
-      setVectorClock(newVectorClock);
-
       const updatedStocks = stocks.map(simulatePriceChange);
       setStocks(updatedStocks);
 
@@ -174,7 +163,7 @@ export function TradingProvider({ children }: { children: ReactNode }) {
           if (!updatedHistory[stock.symbol]) updatedHistory[stock.symbol] = [];
           updatedHistory[stock.symbol] = [
             ...updatedHistory[stock.symbol],
-            { time: now, price: stock.price }
+            { timestamp: now, price: stock.price } // Changed from time to timestamp
           ].slice(-60);
         });
       
@@ -184,7 +173,7 @@ export function TradingProvider({ children }: { children: ReactNode }) {
     }, 3000);
 
     return () => clearInterval(intervalId);
-  }, [websocket, stocks, selectedStock, clientId, lamportClock, vectorClock]);
+  }, [websocket, stocks, selectedStock]);
 
   useEffect(() => {
     if (!websocket || Object.keys(orderBooks).length > 0) return;
@@ -215,12 +204,6 @@ export function TradingProvider({ children }: { children: ReactNode }) {
   const placeOrder = (symbol: string, type: 'BUY' | 'SELL', price: number, quantity: number) => {
     if (!websocket || !symbol) return;
 
-    const newLamportClock = incrementLamportClock(lamportClock);
-    setLamportClock(newLamportClock);
-
-    const newVectorClock = incrementVectorClock(vectorClock, clientId);
-    setVectorClock(newVectorClock);
-
     const newOrder: Order = {
       id: `order-${Math.random().toString(36).substring(2, 10)}`,
       clientId,
@@ -231,8 +214,8 @@ export function TradingProvider({ children }: { children: ReactNode }) {
       remainingQuantity: quantity,
       status: 'PENDING',
       timestamp: Date.now(),
-      lamportTimestamp: newLamportClock,
-      vectorClock: newVectorClock
+      lamportTimestamp: websocket.getLamportClock(),
+      vectorClock: websocket.getVectorClock()
     };
 
     const orderBook = orderBooks[symbol];
