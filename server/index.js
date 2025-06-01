@@ -4,15 +4,93 @@ const WebSocket = require('ws');
 const { v4: uuidv4 } = require('uuid');
 const { OrderMatchingEngine } = require('./orderMatchingEngine');
 const { VectorClock } = require('./vectorClock');
+const { authMiddleware, generateToken, hashPassword, verifyPassword, users } = require('./auth');
 
 const app = express();
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
 
+app.use(express.json());
+
+// Auth routes
+app.post('/api/auth/signup', async (req, res) => {
+  try {
+    const { email, password, name } = req.body;
+    
+    if (Array.from(users.values()).some(user => user.email === email)) {
+      return res.status(400).json({ message: 'Email already exists' });
+    }
+
+    const userId = uuidv4();
+    const hashedPassword = await hashPassword(password);
+    
+    const user = {
+      id: userId,
+      email,
+      name,
+      password: hashedPassword
+    };
+    
+    users.set(userId, user);
+    
+    const token = generateToken(userId);
+    res.json({
+      token,
+      user: {
+        id: userId,
+        email,
+        name
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Error creating user' });
+  }
+});
+
+app.post('/api/auth/login', async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    
+    const user = Array.from(users.values()).find(u => u.email === email);
+    if (!user) {
+      return res.status(401).json({ message: 'Invalid credentials' });
+    }
+
+    const isValid = await verifyPassword(password, user.password);
+    if (!isValid) {
+      return res.status(401).json({ message: 'Invalid credentials' });
+    }
+
+    const token = generateToken(user.id);
+    res.json({
+      token,
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Error logging in' });
+  }
+});
+
+app.get('/api/auth/validate', authMiddleware, (req, res) => {
+  const user = users.get(req.userId);
+  if (!user) {
+    return res.status(401).json({ message: 'User not found' });
+  }
+
+  res.json({
+    id: user.id,
+    email: user.email,
+    name: user.name
+  });
+});
+
+// Trading system setup
 const matchingEngine = new OrderMatchingEngine();
 const vectorClock = new VectorClock();
-
-// Store connected clients
 const clients = new Map();
 
 wss.on('connection', (ws) => {
@@ -34,7 +112,6 @@ wss.on('connection', (ws) => {
     vectorClock.removeNode(clientId);
   });
 
-  // Send initial state
   ws.send(JSON.stringify({
     type: 'CONNECT',
     clientId,
@@ -116,5 +193,5 @@ function broadcastToAll(message) {
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
-  console.log(`Trading server running on port ${PORT}`);
+  console.log(`Server running on port ${PORT}`);
 });
