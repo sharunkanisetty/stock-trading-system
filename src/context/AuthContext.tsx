@@ -94,10 +94,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         body: JSON.stringify({ email, password, name })
       });
 
-      const data = await response.json();
+      let data;
+      try {
+        data = await response.json();
+      } catch (parseError) {
+        if (!response.ok) {
+          throw new Error('Signup failed: Server error');
+        }
+        throw new Error('Invalid response format from server');
+      }
       
       if (!response.ok) {
-        throw new Error(data.message || 'Signup failed');
+        throw new Error(data?.message || 'Signup failed');
+      }
+
+      if (!data || !data.user || !data.token) {
+        throw new Error('Invalid response data from server');
       }
 
       const validatedUser = userSchema.parse(data.user);
