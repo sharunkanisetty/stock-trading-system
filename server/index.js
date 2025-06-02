@@ -13,9 +13,13 @@ const wss = new WebSocket.Server({ server });
 app.use(express.json());
 
 // Auth routes
-app.post('/api/auth/signup', async (req, res) => {
+app.post('/api/auth/signup', async (req, res, next) => {
   try {
     const { email, password, name } = req.body;
+    
+    if (!email || !password || !name) {
+      return res.status(400).json({ message: 'Email, password, and name are required' });
+    }
     
     if (Array.from(users.values()).some(user => user.email === email)) {
       return res.status(400).json({ message: 'Email already exists' });
@@ -43,11 +47,11 @@ app.post('/api/auth/signup', async (req, res) => {
       }
     });
   } catch (error) {
-    res.status(500).json({ message: 'Error creating user' });
+    next(error); // Pass error to error handling middleware
   }
 });
 
-app.post('/api/auth/login', async (req, res) => {
+app.post('/api/auth/login', async (req, res, next) => {
   try {
     const { email, password } = req.body;
     
@@ -71,7 +75,7 @@ app.post('/api/auth/login', async (req, res) => {
       }
     });
   } catch (error) {
-    res.status(500).json({ message: 'Error logging in' });
+    next(error); // Pass error to error handling middleware
   }
 });
 
@@ -190,6 +194,15 @@ function broadcastToAll(message) {
     }
   });
 }
+
+// Global error handling middleware
+app.use((err, req, res, next) => {
+  console.error('Error:', err);
+  res.status(500).json({
+    message: 'Server error',
+    error: process.env.NODE_ENV === 'development' ? err.message : undefined
+  });
+});
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
