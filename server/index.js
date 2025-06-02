@@ -198,10 +198,23 @@ function broadcastToAll(message) {
 // Global error handling middleware
 app.use((err, req, res, next) => {
   console.error('Error:', err);
-  res.status(500).json({
+  
+  // Ensure headers haven't been sent yet
+  if (res.headersSent) {
+    return next(err);
+  }
+
+  // Set content type to application/json
+  res.setHeader('Content-Type', 'application/json');
+
+  // Create error response object
+  const errorResponse = {
     message: 'Server error',
     error: process.env.NODE_ENV === 'development' ? err.message : undefined
-  });
+  };
+
+  // Send JSON response with proper error status
+  res.status(500).send(JSON.stringify(errorResponse));
 });
 
 const PORT = process.env.PORT || 3000;
