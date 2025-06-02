@@ -123,7 +123,7 @@ export function TradingProvider({ children }: { children: ReactNode }) {
       }
     });
 
-    // Sync clocks periodically
+    // Sync clocks periodically for UI display
     const clockSyncInterval = setInterval(() => {
       setLamportClock(ws.getLamportClock());
       setVectorClock(ws.getVectorClock());
@@ -134,7 +134,7 @@ export function TradingProvider({ children }: { children: ReactNode }) {
       ws.close();
       setIsConnected(false);
     };
-  }, [clientId]); // Only depend on clientId
+  }, [clientId]);
 
   const historicalPricesRef = useRef(historicalPrices);
   useEffect(() => {
@@ -163,7 +163,7 @@ export function TradingProvider({ children }: { children: ReactNode }) {
           if (!updatedHistory[stock.symbol]) updatedHistory[stock.symbol] = [];
           updatedHistory[stock.symbol] = [
             ...updatedHistory[stock.symbol],
-            { timestamp: now, price: stock.price } // Changed from time to timestamp
+            { timestamp: now, price: stock.price }
           ].slice(-60);
         });
       
@@ -204,6 +204,13 @@ export function TradingProvider({ children }: { children: ReactNode }) {
   const placeOrder = (symbol: string, type: 'BUY' | 'SELL', price: number, quantity: number) => {
     if (!websocket || !symbol) return;
 
+    // Increment clocks here ONLY on order placement
+    const newLamport = incrementLamportClock(lamportClock);
+    const newVector = incrementVectorClock(vectorClock, clientId);
+
+    setLamportClock(newLamport);
+    setVectorClock(newVector);
+
     const newOrder: Order = {
       id: `order-${Math.random().toString(36).substring(2, 10)}`,
       clientId,
@@ -214,8 +221,8 @@ export function TradingProvider({ children }: { children: ReactNode }) {
       remainingQuantity: quantity,
       status: 'PENDING',
       timestamp: Date.now(),
-      lamportTimestamp: websocket.getLamportClock(),
-      vectorClock: websocket.getVectorClock()
+      lamportTimestamp: newLamport,
+      vectorClock: newVector
     };
 
     const orderBook = orderBooks[symbol];

@@ -58,36 +58,39 @@ const TradeHistory: React.FC = () => {
           </div>
           
           {orders.length > 0 ? (
-            <div className="space-y-2">
-              {orders.slice(0, 3).map((order) => (
-                <div 
-                  key={order.id} 
-                  className="bg-[var(--color-bg-light)] p-2 rounded-[var(--radius-sm)] text-sm"
-                >
-                  <div className="flex justify-between mb-1">
-                    <span className={order.type === 'BUY' ? 'text-green' : 'text-red'}>
-                      {order.type} {order.symbol}
-                    </span>
-                    <span className="mono font-medium">
-                      ${order.price.toFixed(2)} × {order.quantity}
-                    </span>
+            <div className="space-y-2 max-h-[400px] overflow-y-auto">
+              {orders
+                .slice()
+                .sort((a, b) => a.timestamp - b.timestamp)  // FIFO sorting: oldest first
+                .map((order) => (
+                  <div 
+                    key={order.id} 
+                    className="bg-[var(--color-bg-light)] p-2 rounded-[var(--radius-sm)] text-sm"
+                  >
+                    <div className="flex justify-between mb-1">
+                      <span className={order.type === 'BUY' ? 'text-green' : 'text-red'}>
+                        {order.type} {order.symbol}
+                      </span>
+                      <span className="mono font-medium">
+                        ${order.price.toFixed(2)} × {order.quantity}
+                      </span>
+                    </div>
+                    <div className="flex justify-between text-xs">
+                      <span className={`
+                        ${order.status === 'FILLED' ? 'text-green' : ''}
+                        ${order.status === 'PARTIAL' ? 'text-[var(--color-primary)]' : ''}
+                        ${order.status === 'CANCELLED' ? 'text-red' : ''}
+                        ${order.status === 'PENDING' ? 'text-[var(--color-text-secondary)]' : ''}
+                      `}>
+                        {order.status}
+                        {order.status === 'PARTIAL' && ` (${order.remainingQuantity}/${order.quantity})`}
+                      </span>
+                      <span className="text-[var(--color-text-secondary)]">
+                        Vector: {formatVectorClock(order.vectorClock)}
+                      </span>
+                    </div>
                   </div>
-                  <div className="flex justify-between text-xs">
-                    <span className={`
-                      ${order.status === 'FILLED' ? 'text-green' : ''}
-                      ${order.status === 'PARTIAL' ? 'text-[var(--color-primary)]' : ''}
-                      ${order.status === 'CANCELLED' ? 'text-red' : ''}
-                      ${order.status === 'PENDING' ? 'text-[var(--color-text-secondary)]' : ''}
-                    `}>
-                      {order.status}
-                      {order.status === 'PARTIAL' && ` (${order.remainingQuantity}/${order.quantity})`}
-                    </span>
-                    <span className="text-[var(--color-text-secondary)]">
-                      Vector: {formatVectorClock(order.vectorClock)}
-                    </span>
-                  </div>
-                </div>
-              ))}
+                ))}
             </div>
           ) : (
             <div className="text-center text-sm text-[var(--color-text-secondary)] py-2">
