@@ -4,91 +4,12 @@ import { WebSocketServer } from 'ws';
 import { v4 as uuidv4 } from 'uuid';
 import { OrderMatchingEngine } from './orderMatchingEngine.js';
 import { VectorClock } from './vectorClock.js';
-import { authMiddleware, hashPassword, verifyPassword, users } from './auth.js';
 
 const app = express();
 const server = http.createServer(app);
 const wss = new WebSocketServer({ server });
 
 app.use(express.json());
-
-// Auth routes
-app.post('/api/auth/signup', async (req, res, next) => {
-  try {
-    const { email, password, name } = req.body;
-    
-    if (!email || !password || !name) {
-      return res.status(400).json({ message: 'Email, password, and name are required' });
-    }
-    
-    if (Array.from(users.values()).some(user => user.email === email)) {
-      return res.status(400).json({ message: 'Email already exists' });
-    }
-
-    const userId = uuidv4();
-    const hashedPassword = await hashPassword(password);
-    
-    const user = {
-      id: userId,
-      email,
-      name,
-      password: hashedPassword
-    };
-    
-    users.set(userId, user);
-    
-    res.json({
-      userId,
-      user: {
-        id: userId,
-        email,
-        name
-      }
-    });
-  } catch (error) {
-    next(error);
-  }
-});
-
-app.post('/api/auth/login', async (req, res, next) => {
-  try {
-    const { email, password } = req.body;
-    
-    const user = Array.from(users.values()).find(u => u.email === email);
-    if (!user) {
-      return res.status(401).json({ message: 'Invalid credentials' });
-    }
-
-    const isValid = await verifyPassword(password, user.password);
-    if (!isValid) {
-      return res.status(401).json({ message: 'Invalid credentials' });
-    }
-
-    res.json({
-      userId: user.id,
-      user: {
-        id: user.id,
-        email: user.email,
-        name: user.name
-      }
-    });
-  } catch (error) {
-    next(error);
-  }
-});
-
-app.get('/api/auth/validate', authMiddleware, (req, res) => {
-  const user = users.get(req.userId);
-  if (!user) {
-    return res.status(401).json({ message: 'User not found' });
-  }
-
-  res.json({
-    id: user.id,
-    email: user.email,
-    name: user.name
-  });
-});
 
 // Trading system setup
 const matchingEngine = new OrderMatchingEngine();
