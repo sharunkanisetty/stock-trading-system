@@ -1,4 +1,4 @@
-class VectorClock {
+export class VectorClock {
   constructor() {
     this.clock = new Map();
   }
@@ -46,11 +46,9 @@ class VectorClock {
       }
     });
 
-    if (isGreater && !isLess) return 1;  // Greater than
-    if (!isGreater && isLess) return -1; // Less than
-    if (!isGreater && !isLess) return 0; // Equal
-    return null; // Concurrent
+    if (isGreater && !isLess) return 1;
+    if (!isGreater && isLess) return -1;
+    if (!isGreater && !isLess) return 0;
+    return null;
   }
 }
-
-export { VectorClock };

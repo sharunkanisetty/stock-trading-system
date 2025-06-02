@@ -1,15 +1,15 @@
-class OrderMatchingEngine {
+export class OrderMatchingEngine {
   constructor() {
-    this.orderBooks = new Map(); // Symbol -> OrderBook
-    this.orders = new Map(); // OrderId -> Order
+    this.orderBooks = new Map();
+    this.orders = new Map();
   }
 
   processOrder(order) {
     let orderBook = this.orderBooks.get(order.symbol);
     if (!orderBook) {
       orderBook = {
-        bids: [], // Buy orders sorted by price (desc)
-        asks: []  // Sell orders sorted by price (asc)
+        bids: [],
+        asks: []
       };
       this.orderBooks.set(order.symbol, orderBook);
     }
@@ -18,7 +18,6 @@ class OrderMatchingEngine {
     let remainingQuantity = order.quantity;
 
     if (order.type === 'BUY') {
-      // Match against asks (sell orders)
       while (remainingQuantity > 0 && orderBook.asks.length > 0) {
         const bestAsk = orderBook.asks[0];
         if (order.price >= bestAsk.price) {
@@ -36,14 +35,12 @@ class OrderMatchingEngine {
         }
       }
       
-      // Add remaining order to book
       if (remainingQuantity > 0) {
         const newOrder = { ...order, quantity: remainingQuantity };
         this.insertOrder(orderBook.bids, newOrder, true);
         this.orders.set(order.id, newOrder);
       }
     } else {
-      // Match against bids (buy orders)
       while (remainingQuantity > 0 && orderBook.bids.length > 0) {
         const bestBid = orderBook.bids[0];
         if (order.price <= bestBid.price) {
@@ -61,7 +58,6 @@ class OrderMatchingEngine {
         }
       }
       
-      // Add remaining order to book
       if (remainingQuantity > 0) {
         const newOrder = { ...order, quantity: remainingQuantity };
         this.insertOrder(orderBook.asks, newOrder, false);
@@ -80,7 +76,6 @@ class OrderMatchingEngine {
   }
 
   insertOrder(orders, order, isBid) {
-    // Insert order maintaining price-time priority
     const index = orders.findIndex(o => 
       isBid ? o.price < order.price : o.price > order.price
     );
@@ -127,12 +122,10 @@ class OrderMatchingEngine {
     const marketData = {};
     this.orderBooks.forEach((orderBook, symbol) => {
       marketData[symbol] = {
-        bids: orderBook.bids.slice(0, 5), // Top 5 bids
-        asks: orderBook.asks.slice(0, 5)  // Top 5 asks
+        bids: orderBook.bids.slice(0, 5),
+        asks: orderBook.asks.slice(0, 5)
       };
     });
     return marketData;
   }
 }
-
-export { OrderMatchingEngine };

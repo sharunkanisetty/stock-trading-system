@@ -4,7 +4,7 @@ import { WebSocketServer } from 'ws';
 import { v4 as uuidv4 } from 'uuid';
 import { OrderMatchingEngine } from './orderMatchingEngine.js';
 import { VectorClock } from './vectorClock.js';
-import { authMiddleware, generateToken, hashPassword, verifyPassword, users } from './auth.js';
+import { authMiddleware, hashPassword, verifyPassword, users } from './auth.js';
 
 const app = express();
 const server = http.createServer(app);
@@ -37,9 +37,8 @@ app.post('/api/auth/signup', async (req, res, next) => {
     
     users.set(userId, user);
     
-    const token = generateToken(userId);
     res.json({
-      token,
+      userId,
       user: {
         id: userId,
         email,
@@ -47,7 +46,7 @@ app.post('/api/auth/signup', async (req, res, next) => {
       }
     });
   } catch (error) {
-    next(error); // Pass error to error handling middleware
+    next(error);
   }
 });
 
@@ -65,9 +64,8 @@ app.post('/api/auth/login', async (req, res, next) => {
       return res.status(401).json({ message: 'Invalid credentials' });
     }
 
-    const token = generateToken(user.id);
     res.json({
-      token,
+      userId: user.id,
       user: {
         id: user.id,
         email: user.email,
@@ -75,7 +73,7 @@ app.post('/api/auth/login', async (req, res, next) => {
       }
     });
   } catch (error) {
-    next(error); // Pass error to error handling middleware
+    next(error);
   }
 });
 
@@ -151,7 +149,6 @@ function handlePlaceOrder(clientId, orderData) {
 
   const { matches, updatedOrderBook } = matchingEngine.processOrder(order);
 
-  // Broadcast matches and order book updates
   broadcastToAll({
     type: 'ORDER_BOOK_UPDATE',
     data: updatedOrderBook,
@@ -199,21 +196,17 @@ function broadcastToAll(message) {
 app.use((err, req, res, next) => {
   console.error('Error:', err);
   
-  // Ensure headers haven't been sent yet
   if (res.headersSent) {
     return next(err);
   }
 
-  // Set content type to application/json
   res.setHeader('Content-Type', 'application/json');
 
-  // Create error response object
   const errorResponse = {
     message: 'Server error',
     error: process.env.NODE_ENV === 'development' ? err.message : undefined
   };
 
-  // Send JSON response with proper error status
   res.status(500).send(JSON.stringify(errorResponse));
 });
 
