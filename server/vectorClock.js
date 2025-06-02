@@ -53,4 +53,4 @@ class VectorClock {
   }
 }
 
-module.exports = { VectorClock };
+export { VectorClock };

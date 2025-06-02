@@ -1,14 +1,14 @@
-const express = require('express');
-const http = require('http');
-const WebSocket = require('ws');
-const { v4: uuidv4 } = require('uuid');
-const { OrderMatchingEngine } = require('./orderMatchingEngine');
-const { VectorClock } = require('./vectorClock');
-const { authMiddleware, generateToken, hashPassword, verifyPassword, users } = require('./auth');
+import express from 'express';
+import http from 'http';
+import { WebSocketServer } from 'ws';
+import { v4 as uuidv4 } from 'uuid';
+import { OrderMatchingEngine } from './orderMatchingEngine.js';
+import { VectorClock } from './vectorClock.js';
+import { authMiddleware, generateToken, hashPassword, verifyPassword, users } from './auth.js';
 
 const app = express();
 const server = http.createServer(app);
-const wss = new WebSocket.Server({ server });
+const wss = new WebSocketServer({ server });
 
 app.use(express.json());
 

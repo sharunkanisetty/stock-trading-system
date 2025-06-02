@@ -1,6 +1,6 @@
-const jwt = require('jsonwebtoken');
-const bcrypt = require('bcryptjs');
-const { v4: uuidv4 } = require('uuid');
+import jwt from 'jsonwebtoken';
+import bcrypt from 'bcryptjs';
+import { v4 as uuidv4 } from 'uuid';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
 const users = new Map(); // In-memory store for demo. Use a database in production.
@@ -32,7 +32,7 @@ const authMiddleware = (req, res, next) => {
   }
 };
 
-module.exports = {
+export {
   generateToken,
   hashPassword,
   verifyPassword,

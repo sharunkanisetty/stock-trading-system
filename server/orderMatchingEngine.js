@@ -135,4 +135,4 @@ class OrderMatchingEngine {
   }
 }
 
-module.exports = { OrderMatchingEngine };
+export { OrderMatchingEngine };
