@@ -15,7 +15,8 @@ A real-time stock trading system that implements Lamport clocks for distributed 
   1.
   ![image](https://github.com/user-attachments/assets/9ebf04c7-20b8-4bf3-9f7d-9b93c33dd551)
   2.
-  ![Uploading image.png…]()
+  ![image](https://github.com/user-attachments/assets/1f65ee3f-3b85-42d5-9b04-5359be9c7b07)
+
 
 
 
