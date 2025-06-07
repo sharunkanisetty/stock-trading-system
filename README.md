@@ -11,6 +11,10 @@ A real-time stock trading system that implements Lamport clocks for distributed 
 - Real-time order status updates
 - Modern and responsive UI
 
+  ##Screenshots
+  ![image](https://github.com/user-attachments/assets/9ebf04c7-20b8-4bf3-9f7d-9b93c33dd551)
+
+
 ## Technologies Used
 
 - Backend: Node.js, Express, WebSocket (ws)
